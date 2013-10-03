@@ -80,8 +80,13 @@ non-nil then MAP stays active."
                    (documentation cmd 'raw))))
       (let ((rcmd `(lambda (&rest args)
                      ,(help-add-fundoc-usage
-                       (concat doc (and doc "\n\n")
-                               "This is a repeatable command.")
+                       (concat
+                        (when doc
+                          (concat (if (string-match "[ \t\n]+\\'" doc)
+                                      (substring doc 0 (match-beginning 0))
+                                    doc)
+                                  "\n\n"))
+                        "This is a repeatable command.")
                        (help-function-arglist cmd))
                      ,iform
                      (let ((fobj ,(indirect-function cmd)))
