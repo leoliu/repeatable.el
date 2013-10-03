@@ -92,10 +92,13 @@ non-nil then MAP stays active."
                               (define-key map (vector last-input-event) fobj)
                               map)
                             t)))))))
-        (if (symbolp cmd)
-            ;; Don't use defalias which also change CMD's load file.
-            (fset cmd rcmd)
-          rcmd))))
+        (when (symbolp cmd)
+          ;; Don't use defalias which also change CMD's load file.
+          (fset cmd rcmd)
+          ;; (info "(elisp)Documentation Basics")
+          (when (get cmd 'function-documentation)
+            (put cmd 'function-documentation nil)))
+        rcmd)))
    (t (ignore (push cmd repeatable-pending)))))
 
 ;;;###autoload
