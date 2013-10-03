@@ -76,7 +76,8 @@ non-nil then MAP stays active."
          (not (autoloadp (indirect-function cmd))))
     (let ((iform (or (interactive-form cmd)
                      (error "`%s' not a command" cmd)))
-          (doc (documentation cmd 'raw)))
+          (doc (or (cdr (help-split-fundoc (documentation cmd 'raw) nil))
+                   (documentation cmd 'raw))))
       (let ((rcmd `(lambda (&rest args)
                      ,(help-add-fundoc-usage
                        (concat doc (and doc "\n\n")
