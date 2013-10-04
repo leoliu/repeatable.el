@@ -120,13 +120,18 @@ non-nil then MAP stays active."
   (declare (debug defun))
   `(defalias ',name ,(make-command-repeatable `(lambda ,args ,@body))))
 
-(defun repeatable-after-load-hook (_file)
-  "A function for `after-load-functions'."
+(defun repeatable-pre-command-hook ()
+  ;; This hook removes itself from `pre-command-hook' after running.
   (mapc (lambda (cmd)
           (with-demoted-errors
             (make-command-repeatable cmd)))
         (copy-sequence (prog1 repeatable-pending
-                         (setq repeatable-pending nil)))))
+                         (setq repeatable-pending nil))))
+  (remove-hook 'pre-command-hook 'repeatable-pre-command-hook))
+
+(defun repeatable-after-load-hook (_file)
+  "A function for `after-load-functions'."
+  (add-hook 'pre-command-hook #'repeatable-pre-command-hook))
 
 (add-hook 'after-load-functions #'repeatable-after-load-hook)
 
