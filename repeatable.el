@@ -68,12 +68,16 @@ non-nil then MAP stays active."
 
 (defvar repeatable-pending nil)
 
+(defun repeatable-p (symbol)
+  (and (symbolp symbol) (get symbol 'repeatable)))
+
 ;;;###autoload
 (defun make-command-repeatable (cmd)
   "Make CMD a repeatable command and return its function definition."
   (cond
    ((and (functionp cmd)
-         (not (autoloadp (indirect-function cmd))))
+         (not (autoloadp (indirect-function cmd)))
+         (not (repeatable-p cmd)))
     (let ((iform (or (interactive-form cmd)
                      (error "`%s' not a command" cmd)))
           (doc (or (cdr (help-split-fundoc (documentation cmd 'raw) nil))
@@ -86,7 +90,7 @@ non-nil then MAP stays active."
                                       (substring doc 0 (match-beginning 0))
                                     doc)
                                   "\n\n"))
-                        "This is a repeatable command.")
+                        "This command is repeatable.")
                        (help-function-arglist cmd))
                      ,iform
                      (let ((fobj ,(indirect-function cmd)))
@@ -100,10 +104,12 @@ non-nil then MAP stays active."
         (when (symbolp cmd)
           ;; Don't use defalias which also change CMD's load file.
           (fset cmd rcmd)
+          (put cmd 'repeatable t)
           ;; (info "(elisp)Documentation Basics")
           (when (get cmd 'function-documentation)
             (put cmd 'function-documentation nil)))
         rcmd)))
+   ((repeatable-p cmd) (symbol-function cmd))
    (t (ignore (push cmd repeatable-pending)))))
 
 ;;;###autoload
