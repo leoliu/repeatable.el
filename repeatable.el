@@ -6,6 +6,7 @@
 ;; Version: 1.0
 ;; Keywords: extensions, convenience
 ;; Created: 2013-10-02
+;; URL: https://github.com/leoliu/repeatable.el
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -22,7 +23,14 @@
 
 ;;; Commentary:
 
-;; A few functions to make repeatable commands.
+;; A repeatable command is one that can be invoked again by the last
+;; character of its key binding.
+;;
+;; Use `make-command-repeatable' to make existing commands repeatable,
+;; for example: (make-command-repeatable 'enlarge-window), after which
+;; one can use just ^ immediately following C-x ^ to enlarge window.
+;;
+;; Use `define-repeat-command' to define new ones.
 
 ;;; Code:
 
