@@ -101,12 +101,13 @@ non-nil then MAP stays active."
                         "This command is repeatable.")
                        (help-function-arglist cmd))
                      ,iform
-                     (let ((fobj ,(indirect-function cmd)))
-                       (prog1 (apply fobj args)
+                     (let ((f ,(indirect-function cmd)))
+                       (prog1 (apply f args)
                          (when (called-interactively-p 'any)
                            (set-temporary-overlay-map
                             (let ((map (make-sparse-keymap)))
-                              (define-key map (vector last-input-event) fobj)
+                              (define-key map (vector last-input-event)
+                                `(lambda () (interactive) (apply #',f ',args)))
                               map)
                             t)))))))
         (when (symbolp cmd)
