@@ -107,7 +107,10 @@ non-nil then MAP stays active."
                            (set-temporary-overlay-map
                             (let ((map (make-sparse-keymap)))
                               (define-key map (vector last-input-event)
-                                `(lambda () (interactive) (apply #',f ',args)))
+                                `(lambda ()
+                                   (interactive)
+                                   (let ((current-prefix-arg ',current-prefix-arg))
+                                     (call-interactively #',f))))
                               map)
                             t)))))))
         (when (symbolp cmd)
