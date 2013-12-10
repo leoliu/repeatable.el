@@ -106,7 +106,7 @@ non-nil then MAP stays active."
                          (when (called-interactively-p 'any)
                            (set-temporary-overlay-map
                             (let ((map (make-sparse-keymap)))
-                              (define-key map (vector last-input-event)
+                              (define-key map (vector last-command-event)
                                 `(lambda ()
                                    (interactive)
                                    (let ((current-prefix-arg ',current-prefix-arg))
