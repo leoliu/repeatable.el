@@ -1,6 +1,6 @@
 ;;; repeatable.el --- make repeatable commands       -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013  Leo Liu
+;; Copyright (C) 2013-2014  Leo Liu
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
 ;; Version: 1.0
@@ -42,37 +42,31 @@
         (eq 'autoload (car-safe object)))))
 
 (eval-and-compile
-  (or (fboundp 'set-temporary-overlay-map) ; new in 24.3
-      (defun set-temporary-overlay-map (map &optional keep-pred)
-        "Set MAP as a temporary keymap taking precedence over most other keymaps.
-Note that this does NOT take precedence over the \"overriding\" maps
-`overriding-terminal-local-map' and `overriding-local-map' (or the
-`keymap' text property).  Unlike those maps, if no match for a key is
-found in MAP, the normal key lookup sequence then continues.
-
-Normally, MAP is used only once.  If the optional argument
-KEEP-PRED is t, MAP stays active if a key from MAP is used.
-KEEP-PRED can also be a function of no arguments: if it returns
-non-nil then MAP stays active."
-        (let* ((clearfunsym (make-symbol "clear-temporary-overlay-map"))
-               (overlaysym (make-symbol "t"))
-               (alist (list (cons overlaysym map)))
-               (clearfun
-                `(lambda ()
-                   (unless ,(cond ((null keep-pred) nil)
-                                  ((eq t keep-pred)
-                                   `(eq this-command
-                                        (lookup-key ',map
-                                                    (this-command-keys-vector))))
-                                  (t `(funcall ',keep-pred)))
-                     (set ',overlaysym nil) ;Just in case.
-                     (remove-hook 'pre-command-hook ',clearfunsym)
-                     (setq emulation-mode-map-alists
-                           (delq ',alist emulation-mode-map-alists))))))
-          (set overlaysym overlaysym)
-          (fset clearfunsym clearfun)
-          (add-hook 'pre-command-hook clearfunsym)
-          (push alist emulation-mode-map-alists)))))
+  (cond
+   ((fboundp 'set-transient-map) nil)
+   ((fboundp 'set-temporary-overlay-map) ; new in 24.3
+    (defalias 'set-transient-map 'set-temporary-overlay-map))
+   (t
+    (defun set-transient-map (map &optional keep-pred)
+      (let* ((clearfunsym (make-symbol "clear-temporary-overlay-map"))
+             (overlaysym (make-symbol "t"))
+             (alist (list (cons overlaysym map)))
+             (clearfun
+              `(lambda ()
+                 (unless ,(cond ((null keep-pred) nil)
+                                ((eq t keep-pred)
+                                 `(eq this-command
+                                      (lookup-key ',map
+                                                  (this-command-keys-vector))))
+                                (t `(funcall ',keep-pred)))
+                   (set ',overlaysym nil) ;Just in case.
+                   (remove-hook 'pre-command-hook ',clearfunsym)
+                   (setq emulation-mode-map-alists
+                         (delq ',alist emulation-mode-map-alists))))))
+        (set overlaysym overlaysym)
+        (fset clearfunsym clearfun)
+        (add-hook 'pre-command-hook clearfunsym)
+        (push alist emulation-mode-map-alists))))))
 
 (defvar repeatable-pending nil)
 
@@ -104,7 +98,7 @@ non-nil then MAP stays active."
                      (let ((f ,(indirect-function cmd)))
                        (prog1 (apply f args)
                          (when (called-interactively-p 'any)
-                           (set-temporary-overlay-map
+                           (set-transient-map
                             (let ((map (make-sparse-keymap)))
                               (define-key map (vector last-command-event)
                                 `(lambda ()
