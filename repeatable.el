@@ -1,9 +1,9 @@
 ;;; repeatable.el --- make repeatable commands       -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2014  Leo Liu
+;; Copyright (C) 2013-2016  Leo Liu
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 1.0
+;; Version: 1.1
 ;; Keywords: extensions, convenience
 ;; Created: 2013-10-02
 ;; URL: https://github.com/leoliu/repeatable.el
@@ -77,69 +77,70 @@
 (defun make-command-repeatable (cmd)
   "Make CMD a repeatable command and return its function definition."
   (cond
-   ((and (functionp cmd)
-         (not (autoloadp (indirect-function cmd)))
-         (not (repeatable-p cmd)))
-    (let ((iform (or (interactive-form cmd)
-                     (error "`%s' not a command" cmd)))
-          (doc (or (cdr (help-split-fundoc (documentation cmd 'raw) nil))
-                   (documentation cmd 'raw))))
-      (let ((rcmd `(lambda (&rest args)
-                     ,(help-add-fundoc-usage
-                       (concat
-                        (when doc
-                          (concat (if (string-match "[ \t\n]+\\'" doc)
-                                      (substring doc 0 (match-beginning 0))
-                                    doc)
-                                  "\n\n"))
-                        "This command is repeatable.")
-                       (help-function-arglist cmd))
-                     ,iform
-                     (let ((f ,(indirect-function cmd)))
-                       (prog1 (apply f args)
-                         (when (called-interactively-p 'any)
-                           (set-transient-map
-                            (let ((map (make-sparse-keymap)))
-                              (define-key map (vector last-command-event)
-                                `(lambda ()
-                                   (interactive)
-                                   (let ((current-prefix-arg ',current-prefix-arg))
-                                     (call-interactively #',f))))
-                              map)
-                            t)))))))
-        (when (symbolp cmd)
-          ;; Don't use defalias which also change CMD's load file.
-          (fset cmd rcmd)
-          (put cmd 'repeatable t)
-          ;; (info "(elisp)Documentation Basics")
-          (when (get cmd 'function-documentation)
-            (put cmd 'function-documentation nil)))
-        rcmd)))
    ((repeatable-p cmd) (symbol-function cmd))
+   ((and (functionp cmd)
+         (not (autoloadp (indirect-function cmd))))
+    (make-command-repeatable-1 cmd))
    (t (ignore (push cmd repeatable-pending)))))
+
+(defun make-command-repeatable-1 (cmd)
+  (let ((iform (or (interactive-form cmd)
+                   (error "`%s' not a command" cmd)))
+        (doc (or (cdr (help-split-fundoc (documentation cmd 'raw) nil))
+                 (documentation cmd 'raw))))
+    (let ((rcmd `(lambda (&rest args)
+                   ,(help-add-fundoc-usage
+                     (concat
+                      (when doc
+                        (concat (if (string-match "[ \t\n]+\\'" doc)
+                                    (substring doc 0 (match-beginning 0))
+                                  doc)
+                                "\n\n"))
+                      "This command is repeatable.")
+                     (help-function-arglist cmd))
+                   ,iform
+                   (let ((f ,(indirect-function cmd)))
+                     (prog1 (apply f args)
+                       (when (called-interactively-p 'any)
+                         (set-transient-map
+                          (let ((map (make-sparse-keymap)))
+                            (define-key map (vector last-command-event)
+                              `(lambda ()
+                                 (interactive)
+                                 (let ((current-prefix-arg ',current-prefix-arg))
+                                   (call-interactively #',f))))
+                            map)
+                          t)))))))
+      (when (symbolp cmd)
+        ;; Don't use defalias which also change CMD's load file.
+        (fset cmd rcmd)
+        (put cmd 'repeatable t)
+        ;; (info "(elisp)Documentation Basics")
+        (when (get cmd 'function-documentation)
+          (put cmd 'function-documentation nil)))
+      rcmd)))
 
 ;;;###autoload
 (defmacro define-repeat-command (name args &rest body)
   "Define NAME as a repeatable command.
-
-\(fn NAME ARGLIST [DOCSTRING] BODY...)"
+\n(fn NAME ARGLIST [DOCSTRING] BODY...)"
   (declare (debug defun))
   `(defalias ',name ,(make-command-repeatable `(lambda ,args ,@body))))
 
 (defun repeatable-pre-command-hook ()
   ;; This hook removes itself from `pre-command-hook' after running.
   (mapc (lambda (cmd)
-          (with-demoted-errors
+          (with-demoted-errors "make-command-repeatable: %S"
             (make-command-repeatable cmd)))
         (copy-sequence (prog1 repeatable-pending
                          (setq repeatable-pending nil))))
   (remove-hook 'pre-command-hook 'repeatable-pre-command-hook))
 
-(defun repeatable-after-load-hook (_file)
+(defun repeatable-after-load-function (_file)
   "A function for `after-load-functions'."
   (add-hook 'pre-command-hook #'repeatable-pre-command-hook))
 
-(add-hook 'after-load-functions #'repeatable-after-load-hook)
+(add-hook 'after-load-functions #'repeatable-after-load-function)
 
 (provide 'repeatable)
 ;;; repeatable.el ends here
